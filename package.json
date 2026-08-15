@@ -3,6 +3,14 @@
   "version": "0.2.0",
   "description": "SDK public pour écrire des plugins Minute Bot.",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/La-minute-de-code/minute-bot-sdk.git"
+  },
+  "homepage": "https://github.com/La-minute-de-code/minute-bot-sdk#readme",
+  "bugs": {
+    "url": "https://github.com/La-minute-de-code/minute-bot-sdk/issues"
+  },
   "type": "module",
   "packageManager": "pnpm@11.3.0",
   "engines": {
