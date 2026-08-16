@@ -133,6 +133,41 @@ describe('parseManifest', () => {
     expect(parseManifest({ ...valid, main: 'dist/index.js' }).ok).toBe(true);
   });
 
+  test('defaults runtime to node', () => {
+    const result = parseManifest(valid);
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.manifest.runtime).toBe('node');
+  });
+
+  test('accepts a .py main when runtime is python', () => {
+    const result = parseManifest({ ...valid, runtime: 'python', main: 'src/main.py' });
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.manifest.runtime).toBe('python');
+  });
+
+  test('rejects a .js main when runtime is python', () => {
+    const result = parseManifest({ ...valid, runtime: 'python', main: 'src/index.js' });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error).toContain('.py');
+  });
+
+  test('rejects a .py main when runtime is node (the default)', () => {
+    const result = parseManifest({ ...valid, main: 'src/main.py' });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error).toContain('main');
+  });
+
+  test('rejects an unknown runtime', () => {
+    const result = parseManifest({ ...valid, runtime: 'ruby' });
+    expect(result.ok).toBe(false);
+  });
+
+  test('a python main still rejects a parent-directory escape', () => {
+    const result = parseManifest({ ...valid, runtime: 'python', main: '../../evil.py' });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error).toContain('main');
+  });
+
   test.each([
     ['name', 'a'.repeat(65)],
     ['author', 'a'.repeat(129)],

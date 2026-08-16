@@ -56,8 +56,7 @@ const mainPath = z
   .refine((p) => {
     const segments = p.split('/');
     return segments.every((s) => s !== '' && s !== '.' && s !== '..');
-  }, 'main must stay inside the plugin directory')
-  .refine((p) => /\.(js|mjs|cjs|ts|mts)$/.test(p), 'main must point to a JS/TS entrypoint');
+  }, 'main must stay inside the plugin directory');
 
 export const manifestSchema = z
   .object({
@@ -87,6 +86,7 @@ export const manifestSchema = z
       .max(32)
       .refine(isValidVersionRange, 'sdk must be a version or caret range, e.g. "0.2.0" or "^0.2.0"')
       .optional(),
+    runtime: z.enum(['node', 'python']).default('node'),
     main: mainPath,
     permissions: z
       .array(z.enum(PERMISSIONS))
@@ -94,7 +94,23 @@ export const manifestSchema = z
       .default([])
       .transform((list) => [...new Set(list)]),
   })
-  .strict();
+  .strict()
+  .superRefine((manifest, ctx) => {
+    const extensionOk =
+      manifest.runtime === 'node'
+        ? /\.(js|mjs|cjs|ts|mts)$/.test(manifest.main)
+        : /\.py$/.test(manifest.main);
+    if (!extensionOk) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['main'],
+        message:
+          manifest.runtime === 'node'
+            ? 'main must point to a JS/TS entrypoint'
+            : 'main must point to a .py entrypoint',
+      });
+    }
+  });
 
 export type PluginManifest = z.infer<typeof manifestSchema>;
 

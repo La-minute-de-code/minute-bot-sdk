@@ -4,6 +4,18 @@ Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), et le v
 [semver](https://semver.org/lang/fr/). Tant que la version majeure est `0`, une rupture de contrat
 incrémente la version mineure.
 
+## [0.4.0] — 2026-08-16
+
+### Ajouté
+
+- Champ manifeste optionnel `runtime` (`'node' | 'python'`, défaut `'node'`) — un plugin peut
+  déclarer qu'il s'exécute via un interpréteur Python séparé plutôt qu'importé in-process. Pour
+  `runtime: 'python'`, `main` doit pointer vers un fichier `.py` au lieu d'un module JS/TS ; les
+  mêmes contraintes de sécurité s'appliquent (chemin relatif, pas de `..`, pas de chemin absolu,
+  pas d'URL).
+- Rétrocompatible : tout manifeste existant, sans `runtime`, continue de suivre exactement le
+  chemin `'node'` actuel — aucun changement de comportement.
+
 ## [0.3.0] — 2026-08-16
 
 ### Rupture de compatibilité
