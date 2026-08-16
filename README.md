@@ -1,6 +1,6 @@
 # @la_minute_code/sdk
 
-Le contrat public pour écrire un plugin [Minute Bot](https://github.com/La-minute-de-code/minute_bot) :
+Le SDK pour écrire un plugin [Minute Bot](https://github.com/La-minute-de-code/minute_bot) :
 la classe `Plugin`, le `PluginContext` transmis à ses hooks, et le schéma du manifeste
 `plugin.json`.
 
