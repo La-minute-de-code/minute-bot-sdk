@@ -4,6 +4,35 @@ Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/), et le v
 [semver](https://semver.org/lang/fr/). Tant que la version majeure est `0`, une rupture de contrat
 incrémente la version mineure.
 
+## [0.3.0] — 2026-08-16
+
+### Rupture de compatibilité
+
+- `apiVersion` n'accepte plus la valeur littérale `"1.0"` : c'est maintenant une version exacte
+  (`"1.0.0"`) ou une plage caret (`"^1.0.0"`), avec la même grammaire que le nouveau champ `sdk`.
+  Un manifeste existant doit mettre à jour son `apiVersion`.
+- `DatabaseApi.query()` prend désormais un paramètre `never`, comme `RouteApi.register()` — un
+  appel ne compile plus, plutôt que de compiler et échouer seulement au runtime.
+
+### Ajouté
+
+- `SDK_API_VERSION` passe à un semver complet (`1.0.0`, contre `1.0` auparavant). Il est bumpé à la
+  main uniquement quand le contrat plugin (`PluginContext`, schéma du manifeste, permissions)
+  change réellement de forme — indépendamment de la version npm du paquet. Voir la section
+  « Versioning » du README.
+- `isApiVersionCompatible(range, actual)`, exporté par le SDK : compare la plage `apiVersion` d'un
+  plugin à un `SDK_API_VERSION` réel. Sémantique caret standard (npm/`engines`), sans dépendance à
+  `semver`.
+- Champ manifeste optionnel `sdk` — indicatif, non vérifié, pour distinguer « version npm du SDK
+  utilisée pour écrire ce plugin » de la plage `apiVersion` réellement appliquée.
+- `ManifestResult` gagne `issues: readonly { path: string; message: string }[]` sur l'échec, en
+  plus du `error: string` joint déjà existant — un appelant peut réagir à un champ précis (par
+  exemple distinguer un `apiVersion` incompatible d'un manifeste par ailleurs invalide) sans parser
+  la chaîne d'erreur.
+- README : nouvelle section « Modèle de sécurité », explicite sur le fait que les plugins
+  s'exécutent dans le process du bot sans sandbox — les permissions du SDK gouvernent
+  `PluginContext`, pas l'accès à Node lui-même.
+
 ## [0.2.0] — 2026-08-14
 
 ### Rupture de compatibilité
