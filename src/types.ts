@@ -128,7 +128,11 @@ export interface RouteApi {
   register(definition: never): Disposable;
 }
 
-/** Phase 2: Prisma is not wired up yet. */
+/**
+ * Phase 2: Prisma is not wired up yet. `never` mirrors RouteApi: the method
+ * cannot be called from valid TypeScript, so a plugin discovers this at
+ * compile time rather than writing a call that only fails at runtime.
+ */
 export interface DatabaseApi {
-  query(sql: string, params?: unknown[]): Promise<unknown>;
+  query(definition: never): Promise<unknown>;
 }

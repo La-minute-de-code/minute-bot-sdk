@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { isValidVersionRange } from './version.js';
 
 export const PERMISSIONS = [
   'commands',
@@ -68,10 +69,24 @@ export const manifestSchema = z
         (n) => !(RESERVED_PLUGIN_NAMES as readonly string[]).includes(n),
         'name is reserved by the bot',
       ),
-    version: z.string().regex(SEMVER, 'version must be semver'),
+    version: z.string().max(64).regex(SEMVER, 'version must be semver'),
     author: z.string().min(1).max(128),
     description: z.string().max(512).default(''),
-    apiVersion: z.literal('1.0'),
+    // Enforced: the loader refuses to enable a plugin whose range does not
+    // cover the bot's running SDK_API_VERSION, via isApiVersionCompatible().
+    apiVersion: z
+      .string()
+      .max(32)
+      .refine(isValidVersionRange, 'apiVersion must be a version or caret range, e.g. "1.0.0" or "^1.0.0"'),
+    // Informational only: records which SDK release a plugin was written
+    // against. Not checked against anything — apiVersion is the contract
+    // that is actually enforced. Useful for a human or a future tool
+    // diagnosing "written for an old SDK" independently of API compatibility.
+    sdk: z
+      .string()
+      .max(32)
+      .refine(isValidVersionRange, 'sdk must be a version or caret range, e.g. "0.2.0" or "^0.2.0"')
+      .optional(),
     main: mainPath,
     permissions: z
       .array(z.enum(PERMISSIONS))
@@ -83,19 +98,31 @@ export const manifestSchema = z
 
 export type PluginManifest = z.infer<typeof manifestSchema>;
 
+/** One rejected field, for a caller that wants to react to a specific failure (e.g. a distinct "incompatible" state for apiVersion) rather than parse the joined `error` string. */
+export interface ManifestIssue {
+  readonly path: string;
+  readonly message: string;
+}
+
 export type ManifestResult =
   | { ok: true; manifest: PluginManifest }
-  | { ok: false; error: string };
+  | { ok: false; error: string; issues: readonly ManifestIssue[] };
 
 export function parseManifest(raw: unknown): ManifestResult {
   const parsed = manifestSchema.safeParse(raw);
   if (parsed.success) return { ok: true, manifest: parsed.data };
 
-  const error = parsed.error.issues
-    .map((issue) => `${issue.path.join('.') || '<root>'}: ${issue.message}`)
+  // Issue messages can echo manifest values back; keep them from forging log
+  // lines, on each issue individually — `issues` is public, a caller may log
+  // one without going through the joined `error` string below.
+  const issues = parsed.error.issues.map((issue) => ({
+    path: issue.path.join('.') || '<root>',
+    message: issue.message.replace(/[\r\n]+/g, ' ').slice(0, MAX_ERROR_LENGTH),
+  }));
+
+  const error = issues
+    .map((issue) => `${issue.path}: ${issue.message}`)
     .join('; ')
-    // Issue messages can echo manifest values back; keep them from forging log lines.
-    .replace(/[\r\n]+/g, ' ')
     .slice(0, MAX_ERROR_LENGTH);
-  return { ok: false, error };
+  return { ok: false, error, issues };
 }

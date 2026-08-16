@@ -6,7 +6,7 @@ const valid = {
   version: '1.0.0',
   author: 'Community',
   description: 'Plugin exemple',
-  apiVersion: '1.0',
+  apiVersion: '^1.0.0',
   main: 'src/index.ts',
   permissions: ['commands', 'events'],
 };
@@ -34,9 +34,51 @@ describe('parseManifest', () => {
     if (!result.ok) expect(result.error).toContain('permissions');
   });
 
-  test('rejects an unsupported api version', () => {
-    const result = parseManifest({ ...valid, apiVersion: '2.0' });
+  test.each([
+    ['a bare two-part version', '2.0'],
+    ['a tilde range', '~1.0.0'],
+    ['a wildcard', '*'],
+    ['a prerelease suffix', '1.0.0-beta.1'],
+    ['an empty string', ''],
+  ])('rejects a malformed apiVersion (%s)', (_label, apiVersion) => {
+    const result = parseManifest({ ...valid, apiVersion });
     expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error).toContain('apiVersion');
+  });
+
+  test('accepts an exact-pin apiVersion', () => {
+    expect(parseManifest({ ...valid, apiVersion: '1.0.0' }).ok).toBe(true);
+  });
+
+  test('accepts an apiVersion the running SDK does not itself satisfy — that check is isApiVersionCompatible, not parseManifest', () => {
+    expect(parseManifest({ ...valid, apiVersion: '^2.0.0' }).ok).toBe(true);
+  });
+
+  test('accepts a manifest without the optional sdk field', () => {
+    expect(parseManifest(valid).ok).toBe(true);
+  });
+
+  test('accepts a valid sdk range', () => {
+    expect(parseManifest({ ...valid, sdk: '^0.2.0' }).ok).toBe(true);
+  });
+
+  test('rejects a malformed sdk range', () => {
+    const result = parseManifest({ ...valid, sdk: '~0.2.0' });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error).toContain('sdk');
+  });
+
+  test('failure carries structured issues alongside the joined error string', () => {
+    const result = parseManifest({ ...valid, apiVersion: 'nope', name: 'Also Bad' });
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.issues.length).toBeGreaterThanOrEqual(2);
+      expect(result.issues.some((issue) => issue.path === 'apiVersion')).toBe(true);
+      expect(result.issues.some((issue) => issue.path === 'name')).toBe(true);
+      for (const issue of result.issues) {
+        expect(issue.message).not.toMatch(/[\r\n]/);
+      }
+    }
   });
 
   test('rejects a name that is not kebab-case', () => {
@@ -95,8 +137,18 @@ describe('parseManifest', () => {
     ['name', 'a'.repeat(65)],
     ['author', 'a'.repeat(129)],
     ['description', 'a'.repeat(513)],
+    ['version', `1.0.0-${'a'.repeat(65)}`],
   ])('rejects an oversized %s', (field, value) => {
     expect(parseManifest({ ...valid, [field]: value }).ok).toBe(false);
+  });
+
+  test.each([
+    ['apiVersion', `^${'9'.repeat(40)}.0.0`],
+    ['sdk', `^${'9'.repeat(40)}.0.0`],
+  ])('rejects an oversized %s even when otherwise well-formed', (field, value) => {
+    const result = parseManifest({ ...valid, [field]: value });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error).toContain(field);
   });
 
   test('rejects a reserved name', () => {
